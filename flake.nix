@@ -26,42 +26,52 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      perSystem = { pkgs, system, ... }:
-      let
-        rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rust;
-        overlays = [ inputs.rust-overlay.overlays.default ];
-        src = craneLib.cleanCargoSource ./.;
-        cargoArtifacts = craneLib.buildDepsOnly {
-          inherit src;
-        };
-        flashing = craneLib.buildPackage {
-          inherit src cargoArtifacts;
-          strictDeps = true;
+      perSystem =
+        { pkgs, system, ... }:
+        let
+          rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rust;
+          overlays = [ inputs.rust-overlay.overlays.default ];
+          src = craneLib.cleanCargoSource ./.;
+          cargoArtifacts = craneLib.buildDepsOnly {
+            inherit src;
+          };
+          flashing = craneLib.buildPackage {
+            inherit src cargoArtifacts;
+            strictDeps = true;
 
-          doCheck = true;
-        };
-      in
-      {
-        _module.args.pkgs = import inputs.nixpkgs {
-          inherit system overlays;
-        };
+            doCheck = true;
+          };
+        in
+        {
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system overlays;
+          };
 
-        packages = {
-          inherit flashing;
-          default = flashing;
-        };
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.nixfmt.enable = true;
+            programs.rustfmt.enable = true;
+            programs.taplo.enable = true;
+            programs.actionlint.enable = true;
+            programs.mdformat.enable = true;
+          };
 
-        checks = {
-          inherit flashing;
-        };
+          packages = {
+            inherit flashing;
+            default = flashing;
+          };
 
-        devShells.default = pkgs.mkShell {
-          packages = [
-            rust
-            pkgs.nil
-          ];
+          checks = {
+            inherit flashing;
+          };
+
+          devShells.default = pkgs.mkShell {
+            packages = [
+              rust
+              pkgs.nil
+            ];
+          };
         };
-      };
     };
 }
